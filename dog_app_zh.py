@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
 # ## 卷积神经网络（Convolutional Neural Network, CNN）
@@ -195,15 +195,10 @@ dog_files_short = train_files[:100]
 
 ## TODO: 基于human_files_short和dog_files_short
 ## 中的图像测试face_detector的表现
-human_face_detected = 0
-dog_detected = 0
-for i in range(100):
-    if face_detector(human_files_short[i]) == True:
-        human_face_detected += 1
-    if face_detector(dog_files_short[i]) == True:
-        dog_detected += 1
-print(human_face_detected/100)
-print(dog_detected/100)
+def detect(detector, files):
+    return np.mean([detector(f) for f in files])
+print('human: {:.2%}'.format(detect(face_detector, human_files_short)))
+print('dog: {:.2%}'.format(detect(face_detector, dog_files_short)))
 
 
 # ---
@@ -346,8 +341,8 @@ for i, _ in enumerate(dog_files_short):
     if dog_detector(dog_files_short[i]):
         dog_count += 1
 
-print('human_files_short: %d percent' % human_count)
-print('dog_files_short: %d percent' % dog_count)
+print('human: {:.2%}'.format(detect(dog_detector, human_files_short)))
+print('dog: {:.2%}'.format(detect(dog_detector, dog_files_short)))
 
 
 # ---
@@ -659,6 +654,25 @@ print(train_Resnet50.shape[1:])
 # 
 # __回答:__ 
 # 
+# * 迁移学习的形式：冻结（将层设置为不可训练）预训练模型的全部卷积层，只训练自己定制的全连接层。当前，我们选择的模型都是在IMAGENET训练集上已经训练好的，然后把卷积层去掉，加上全新的未训练层（相当于把卷积的部分保留并冻结，重新训练分类的部分），然后用我们提供的新的训练集进行二次训练。相比直接在我们的训练集上训练一个全新的模型，我们采用的迁移学习节省了大量的计算成本，同时因为IMAGENET数据集的强大，可以导致更好的效果。
+# * 迁移学习中Extract Feature Vector：先计算出预训练模型的卷积层对所有训练和测试数据的特征向量，然后抛开预训练模型，只训练自己定制的简配版全连接网络。 其中，把训练集经过预训练模型生成出bottleneck features，然后直接通过bottleneck features进行训练。这种方法相当于是将整个模型拆分成了两个部分。第一步是将所有图片通过ResNet的卷积结构（所有层冻结），然后将数据“编码”成bottleneck features；第二步则是用这些bottleneck features训练我们后加的新的结构（分类器），即是这里实现的部分。
+# * 迁移学习fine-tune: 冻结预训练模型的部分卷积层（通常是靠近输入的多数卷积层），训练剩下的卷积层（通常是靠近输出的部分卷积层）和全连接层。 Fine-tune的形式下分不同程度的解冻原有层参数，甚至可以解冻所有层。实际上，预训练模型的每一层都可以自定义解冻，进行二次训练。相比冻结所有预训练模型卷积层，Fine-tune可以学到更多的特征知识，可以带来更好的效果。但是Fine-tune的代价就是需要大量的计算成本，包括计算时间和计算性能。
+# 
+# **
+# ** 对比几种CNN模型架构：
+# **
+#  VGG 模型主要思想是增加网络深度，减少卷积核尺寸（3x3）. 减少卷积核的好处是可以减少参数和计算量。
+#  GoogLeNet/Inception 增强了卷积模块的功能。
+#  Inception-V2 主要是提出了batch normalization,目的是在于加速训练速度。
+#  ResNet 主要解决深度网络中的退化问题。 由于存在网络越深，梯度消失越来越明显的问题，shallower network 又无法提升识别效果。所以需要解决加深网络情况下的梯度消失问题。
+#  
+# 总之，这几种模型通过迁移学习技术（特征提取,微调(fine-tuning)），对ImaegNet以外的数据集有很强的泛化能力。
+# 
+# * reference: https://blog.csdn.net/u012931582/article/details/76407235
+# * reference: https://blog.csdn.net/numeria/article/details/73611456
+# 
+# ***
+# 本模块功能：
 # 抽取的bottleneck features传入全局平均池化层，一定程度上可以避免过拟合。经过dropout后，全局平均池化层的输出导入到860个node的dense层。所学习的860个feature传入到softmax层，学习分类得到狗狗的不同类别。其中的dropout调整的目的是为了降低过拟合的可能。
 # 其中的采用的Dense层可以扩展网络, 同时允许在整个网络中发送更多信息。而全局平均池化层还可以将多维输入一维化。
 
@@ -820,6 +834,7 @@ def breeds_detector(img_path):
         plot_image(img_path)
         return ResNet_predict_dog_class(img_path)
     else:
+        plot_image(img_path)
         return print("can not detect any dogs or faces")
 
 
@@ -851,46 +866,87 @@ breeds_detector(train_files[1])
 
 ## TODO: 在你的电脑上，在步骤6中，至少在6张图片上运行你的算法。
 ## 自由地使用所需的代码单元数吧
-breeds_detector(test_files[2])
+# bellow jpg is googled from website, for our detector here. it is different from the test set.
+breeds_detector('01.jpg')
 
 
 # In[35]:
 
 
-breeds_detector(test_files[3])
+# bellow jpg is googled from website, for our detector here. it is different from the test set.
+breeds_detector('02.jpg')
 
 
 # In[36]:
 
 
-breeds_detector(test_files[12])
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('man1.jpg')
 
 
 # In[37]:
 
 
-breeds_detector(human_files[2])
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('03.jpg')
 
 
 # In[38]:
 
 
-breeds_detector(human_files[21])
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('man2.jpg')
 
 
 # In[39]:
 
 
-breeds_detector(human_files[50])
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('04.jpg')
 
 
 # In[40]:
 
 
-breeds_detector(test_files[30])
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('cat1.jpg')
 
 
-# 回答：结果比预想的好，因为准确率已经达到了76.55%。
-# 如果希望改进模型的化，可以在算法中采取图像增强的方式，可以需要注意图像例如只有半个，或者狗狗和其它动物混合的在一个图片的情况，可以尝试其它架构去计算bottleneck features. 增加epoc也是个好办法，但可能计算时间过长，或造成over fitting.
+# In[41]:
+
+
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('dog_baby.jpg')
+
+
+# In[42]:
+
+
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('two_dog.jpg')
+
+
+# In[43]:
+
+
+# bellow jpg is baidu from website, for our detector here. it is different from the test set.
+breeds_detector('land1.jpg')
+
+
+# 回答：结果比预想的好，因为准确率已经达到了78.82%
+# 
+# #### 对改进模型的建议
+# * 交叉验证（Cross Validation）
+# 在本次训练中，我们只进行了一次训练集/测试集切分，而在实际模型训练过程中，我们往往是使用交叉验证（Cross Validation）来进行模型选择（Model Selection）和调参（Parameter Tunning）的。交叉验证的通常做法是，按照某种方式多次进行训练集/测试集切分，最终取平均值（加权平均值），具体可以参考维基百科的介绍。
+# * 模型融合/集成学习（Model Ensembling）
+# 通过利用一些机器学习中模型融合的技术，如voting、bagging、blending以及staking等，可以显著提高模型的准确率与鲁棒性，且几乎没有风险。
+# 更多的数据
+# * 对于深度学习（机器学习）任务来说，更多的数据意味着更为丰富的输入空间，可以带来更好的训练效果。可以通过数据增强（Data Augmentation）、对抗生成网络（Generative Adversarial Networks）等方式来对数据集进行扩充，同时这种方式也能提升模型的鲁棒性。
+# * 更换人脸检测算法
+# 尽管OpenCV工具包非常方便并且高效，Haar级联检测也是一个可以直接使用的强力算法，但是这些算法仍然不能获得很高的准确率，并且需要用户提供正面照片，这带来的一定的不便。所以如果想要获得更好的用户体验和准确率，我们可以尝试一些新的人脸识别算法，如基于深度学习的一些算法。
+# 多目标监测
+# * 更进一步
+# 我们可以通过一些先进的目标识别算法，如RCNN、Fast-RCNN、Faster-RCNN或Masked-RCNN等，来完成一张照片中同时出现多个目标的检测任务。
+# 
 
 # **注意: 当你写完了所有的代码，并且回答了所有的问题。你就可以把你的 iPython Notebook 导出成 HTML 文件。你可以在菜单栏，这样导出File -> Download as -> HTML (.html)把这个 HTML 和这个 iPython notebook 一起做为你的作业提交。**
